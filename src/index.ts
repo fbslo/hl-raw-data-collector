@@ -49,8 +49,6 @@ async function main(){
         }
     }
 
-    console.log(combinedTokenInfos)
-
     connectWebSocket(combinedTokenInfos)
 }
 
@@ -96,18 +94,28 @@ let orderBookData: Record<string, Record<number, any>> = {}
 function connectWebSocket(combinedTokenInfos: CombinedTokenInfo[]) {
     const ws = new WebSocket(wsUrl);
 
-    let finished: Record<string, boolean> = {}
+    let finished: Record<number, boolean> = {}
 
     ws.on('open', () => {
         console.log('WebSocket connected');
 
+        let k = 0;
         for (let i in combinedTokenInfos){
             for (let j in combinedTokenInfos[Number(i)].requiredSigFig){
-                finished[combinedTokenInfos[Number(i)].universe.name + "_" + combinedTokenInfos[Number(i)].requiredSigFig[Number(j)]] = false
+                finished[k] = false;
                 ws.send(JSON.stringify({
-                    method: "subscribe",
-                    subscription: { type: "l2Book", coin: combinedTokenInfos[Number(i)].universe.name, nSigFigs: combinedTokenInfos[Number(i)].requiredSigFig[Number(j)] }
-                }));
+                    "method": "post",
+                    "id": k,
+                    "request": {
+                        "type": "info",
+                        "payload": {
+                            "type": "l2Book",
+                            "coin": combinedTokenInfos[Number(i)].universe.name,
+                            "nSigFigs": combinedTokenInfos[Number(i)].requiredSigFig[Number(j)],
+                        }
+                    }
+                }))
+                k++;
             } 
         }
     });
@@ -116,20 +124,18 @@ function connectWebSocket(combinedTokenInfos: CombinedTokenInfo[]) {
     try {
         const message = JSON.parse(data as any);
         
-        if (message.channel == "error" && message.data.includes("Invalid subscription")){
-            const coin = message.data.split(`coin":`)[1].split(`"`)[1]
-            const nSigFig = message.data.split(`nSigFigs":`)[1].split(`,`)[0]
-            console.log(`Error: ${coin}, ${nSigFig}`)
-            finished[coin+"_"+nSigFig.toString()] = true;
+        if (message.channel == "post" && message.data.response.type == "error"){
+            finished[message.data.id] = true;
         }
 
-        if (message.channel === 'l2Book') {
-            const pair = message.data.coin
-            const levels = message.data.levels;
+        if (message.channel == 'post' && message.data.response.type == "info") {
+            const payload = message.data.response.payload
+            const pair = payload.data.coin
+            const levels = payload.data.levels;
             const nSigFig = countSignificantFigures(levels[1][0].px)
 
             let lastUpdate = orderBookData[pair] ? (orderBookData[pair][nSigFig] ? orderBookData[pair][nSigFig].lastUpdate : 0) : 0
-            if (new Date().getTime() - 1000 * 60 > lastUpdate){
+            if (new Date().getTime() - 1000 * 60 * 10 > lastUpdate){
                 console.log(`Updating ${pair}, nSigFig ${nSigFig}`)
 
                 if (!orderBookData[pair]) orderBookData[pair] = {}
@@ -138,7 +144,7 @@ function connectWebSocket(combinedTokenInfos: CombinedTokenInfo[]) {
                 orderBookData[pair][nSigFig].lastUpdate = new Date().getTime()
                 orderBookData[pair][nSigFig].levels = levels
 
-                finished[pair+"_"+nSigFig.toString()] = true;
+                finished[message.data.id] = true;
             }
 
             if (Object.values(finished).every(value => value == true)){
@@ -159,5 +165,6 @@ function connectWebSocket(combinedTokenInfos: CombinedTokenInfo[]) {
 async function storeData(data: any){
     if (isAlreadyStored) return;
     isAlreadyStored = true
+    console.log(`Storing data...`)
     fs.writeFileSync("./data/data_"+new Date().getTime()+".json", JSON.stringify(data));
 }
