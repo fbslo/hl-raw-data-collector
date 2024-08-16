@@ -120,7 +120,7 @@ function connectWebSocket(combinedTokenInfos: CombinedTokenInfo[]) {
         }
     });
 
-  ws.on('message', async (data) => {
+  ws.on('message', async (data: any) => {
     try {
         const message = JSON.parse(data as any);
         
@@ -157,7 +157,7 @@ function connectWebSocket(combinedTokenInfos: CombinedTokenInfo[]) {
     }
   });
 
-  ws.on('error', (error) => {
+  ws.on('error', (error: any) => {
     console.error('WebSocket error:', error);
   });
 }
