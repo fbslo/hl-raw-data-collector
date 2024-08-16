@@ -1,6 +1,6 @@
 import WebSocket from "ws";
 import axios from "axios";
-import fs from "fs";
+import * as fs from 'node:fs/promises';
 import cron from 'node-cron';
 
 import { SpotMetaAndAssetCtxs, Token, UniverseToken, MarketData, CombinedTokenInfo } from './types'
@@ -166,5 +166,7 @@ async function storeData(data: any){
     if (isAlreadyStored) return;
     isAlreadyStored = true
     console.log(`Storing data...`)
-    fs.writeFileSync("./data/data_"+new Date().getTime()+".json", JSON.stringify(data));
+    let fileName = `./data/data_${new Date().getTime()}_${new Date().toISOString().replace(/:/g, "-").replace(/./g, "-")}.json`
+    let jsonData = JSON.stringify(data)
+    await fs.writeFile(fileName, jsonData);
 }
