@@ -166,7 +166,7 @@ async function storeData(data: any){
     if (isAlreadyStored) return;
     isAlreadyStored = true
     console.log(`Storing data...`)
-    let fileName = `./data/data_${new Date().getTime()}_${new Date().toISOString().replace(/:/g, "-").replace(/./g, "-")}.json`
+    let fileName = `./data/data_${new Date().getTime()}_${new Date().toISOString().replace(/:/g, "-").replace(".", "-")}.json`
     let jsonData = JSON.stringify(data)
     await fs.writeFile(fileName, jsonData);
 }
